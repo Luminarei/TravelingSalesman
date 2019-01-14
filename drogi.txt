@@ -1,0 +1,12 @@
+Katowice Gliwice 28
+Katowice Ruda_Slaska 14
+Ruda_Slaska Siemanowice 28
+Ruda_Slaska Gliwice 16
+Gliwice Zabrze 13
+Zabrze Bytom 11
+Bytom Sosnowiec 22
+Bytom Siemanowice 9
+Siemanowice Ruda_Slaska 28
+Siemanowice Sosnowiec 8
+Sosnowiec Bytom 22
+Sosnowiec Katowice 7
