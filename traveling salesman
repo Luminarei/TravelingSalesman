@@ -1,0 +1,262 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+
+using namespace std;
+
+struct Miasto;
+
+struct Element {
+	Miasto* miasto;
+	int odleglosc;
+	Element* next;
+};
+
+struct Miasto {
+	string nazwa;
+	Element *lista;
+};
+
+Miasto* FindInList(string nazwa, Element* lista) {
+	while (lista) {
+		if (lista->miasto->nazwa == nazwa) return lista->miasto;
+		lista = lista->next;
+	}
+	return nullptr;
+}
+
+Element** EndOfList(Element **lista) {
+	while (lista && (*lista)) {
+		lista = &(*lista)->next;
+	}
+	return lista;
+}
+
+bool DodajMiastaZPliku(string nazwa, Element** miasta) {
+	fstream plik = fstream(nazwa, ios::in || ios::binary);
+	if (!plik.good()) throw 1;
+
+	Element* end = *miasta;
+
+	while (!plik.eof()) {
+		Miasto *miastoA, *miastoB;
+		string nazwaA, nazwaB;
+		int odleglosc;
+
+		plik >> nazwaA >> nazwaB >> odleglosc;
+
+		miastoA = FindInList(nazwaA, *miasta);
+		if (miastoA == nullptr) {
+			Element* temp = new Element();
+			temp->miasto = new Miasto();
+			temp->miasto->nazwa = nazwaA;
+			temp->miasto->lista = nullptr;
+			temp->odleglosc = 0;
+			temp->next = nullptr;
+
+			if (*miasta == nullptr) {
+				end = *miasta = temp;
+			}
+			else {
+				end->next = temp;
+				end = temp;
+			}
+			miastoA = temp->miasto;
+		}
+
+		miastoB = FindInList(nazwaB, *miasta);
+		if (miastoB == nullptr) {
+			Element* temp = new Element();
+			temp->miasto = new Miasto();
+			temp->miasto->nazwa = nazwaB;
+			temp->miasto->lista = nullptr;
+			temp->odleglosc = 0;
+			temp->next = nullptr;
+
+			end->next = temp;
+			end = temp;
+
+			miastoB = temp->miasto;
+		}
+
+		Element** tmpList = EndOfList(&(miastoA->lista));
+		*tmpList = new Element();
+		(*tmpList)->miasto = miastoB;
+		(*tmpList)->odleglosc = odleglosc;
+		(*tmpList)->next = nullptr;
+
+		//tmpList = EndOfList(&(miastoB->lista));
+		//*tmpList = new Element();
+		//(*tmpList)->miasto = miastoA;
+		//(*tmpList)->odleglosc = odleglosc;
+		//(*tmpList)->next = nullptr;
+	}
+
+	return true;
+}
+
+struct Trasa {
+	Miasto *miastoStart;
+	Miasto *miastoKoniec;
+};
+
+struct Trasy {
+	Trasa trasa;
+	Trasy* next;
+};
+
+bool DodajTrasyZPliku(string nazwa, Trasy** trasa, Element* miasta) {
+	fstream plik = fstream(nazwa, ios::in || ios::binary);
+	if (!plik.good()) throw 1;
+	Trasy* end = *trasa;
+
+	while (!plik.eof()) {
+		Miasto *miastoA, *miastoB;
+		string nazwaA, nazwaB;
+
+		plik >> nazwaA >> nazwaB;
+		miastoA = FindInList(nazwaA, miasta);
+		miastoB = FindInList(nazwaB, miasta);
+
+		Trasy *temp = new Trasy();
+		temp->trasa.miastoStart = miastoA;
+		temp->trasa.miastoKoniec = miastoB;
+		if (*trasa == nullptr) {
+			end = *trasa = temp;
+		}
+		else
+		{
+			end->next = temp;
+			end = temp;
+		}
+	}
+	return true;
+}
+
+//void Wypisz(Element* lista) {
+//	while (lista)
+//	{
+//		cout << lista->miasto->nazwa << endl;
+//		Element *tym = lista->miasto->lista;
+//		while (tym)
+//		{
+//			cout << '\t' << tym->miasto->nazwa << "\t\tKILOMETRY: " << tym->odleglosc<< endl;
+//			tym = tym->next;
+//		}
+//		lista = lista->next;
+//	}
+//}
+//
+//void wyp2(Trasy *trasy) {
+//	while (trasy) 
+//	{
+//		cout << trasy->trasa.miastoStart->nazwa << "\t -> \t" << trasy->trasa.miastoKoniec->nazwa <<endl;
+//		trasy = trasy->next;
+//	}
+//}
+
+void traverse(Element* miasto, Miasto* koniec, int value, Element** odwiedzone, int* min, string* best) {
+	if (miasto == nullptr) return;
+	else if (FindInList(miasto->miasto->nazwa, *odwiedzone)) return;
+	else if (FindInList(koniec->nazwa, miasto) == koniec) {
+		while (miasto->miasto != koniec) {
+			miasto = miasto->next;
+		}
+		value += miasto->odleglosc;
+		if (*min > value || *min < 0) {
+			*min = value;
+			Element* temp = *odwiedzone;
+			*best += "trasa: " + (*odwiedzone)->miasto->nazwa + " --> " + koniec->nazwa + " (" + to_string(value) + "):\n";
+			while (temp->next) {
+				*best += '\t' + temp->miasto->nazwa + " --> " + temp->next->miasto->nazwa + '\t' + to_string(temp->next->odleglosc) + '\n';
+				temp = temp->next;
+			}
+			*best += "\t" + temp->miasto->nazwa + " --> " + koniec->nazwa + '\t' + to_string(miasto->odleglosc) + '\n';
+		}
+	}
+	Element** last = EndOfList(odwiedzone);
+	while (miasto) {
+		*last = new Element();
+		(*last)->miasto = miasto->miasto;
+		(*last)->odleglosc = miasto->odleglosc;
+		traverse(miasto->miasto->lista, koniec, value + miasto->odleglosc, odwiedzone, min, best);
+
+		delete *last;
+		miasto = miasto->next;
+	}
+}
+
+int WyznaczNajkrotszaTraseMiedzyMiastami(Trasy* trasy, Element* miasta) {
+	Element* odwiedzone;
+	int min;
+	string best;
+	while (trasy) {
+		Miasto* koniec = trasy->trasa.miastoKoniec;
+		Miasto* start = trasy->trasa.miastoStart;
+
+		odwiedzone = new Element();
+		odwiedzone->miasto = start;
+
+		min = -1;
+		best = "";
+
+		traverse(start->lista, koniec, 0, &odwiedzone, &min, &best);
+
+		if (min >= 0) {
+			cout << best << endl;
+		}
+		else cout << "Brak trasy!" << endl;
+
+		delete odwiedzone;
+
+		trasy = trasy->next;
+	}
+	return 0;
+}
+
+void UsunTrasy(Trasy *trasy) {
+	Trasy* backup = trasy;
+	while (trasy) {
+		backup = trasy;
+		trasy = trasy->next;
+		delete backup;
+	}
+}
+
+void UsunElementy(Element* lista) {
+	Element *backup;
+	while (lista)
+	{
+		Element *tym = lista->miasto->lista;
+		while (tym)
+		{
+			backup = tym;
+			tym = tym->next;
+			delete backup;
+		}
+		backup = lista;
+		lista = lista->next;
+		delete backup->miasto;
+		delete backup;
+	}
+}
+
+int main(int argc, char *argv[])
+{
+	Element* miasta = nullptr;
+	Trasy* trasy = nullptr;
+	try {
+		DodajMiastaZPliku("drogi.txt", &miasta);
+		DodajTrasyZPliku("trasy.txt", &trasy, miasta);
+		WyznaczNajkrotszaTraseMiedzyMiastami(trasy, miasta);
+
+		UsunElementy(miasta);
+		UsunTrasy(trasy);
+		//Wypisz(miasta);
+		//wyp2(trasy);
+	}
+	catch (int ex) {
+		cout << "Blad programu nr.: " << ex << endl;
+	}
+	system("pause");
+}
